@@ -70,7 +70,7 @@ Draw <- function(inFile, sample, Z=NULL)
             if (all(is.na(Z$QUAL)) | all(Z$QUAL==".")){
             p3 = ggplot() + ggtitle("QUAL not available") + theme(panel.border = element_rect(colour = "black", fill=NA, size=2))
             }else {
-            QUAL99 = quantile(Z$QUAL, 0.99, na.rm=T)
+            QUAL99 = quantile(as.numeric(Z$QUAL), 0.99, na.rm=T)
             binWidth = ifelse(QUAL99 > 30, round(QUAL99/30), 1)
             QUALvals <-  select(Z, QUAL)  %>% mutate(QUAL=as.numeric(QUAL) ) %>% filter( ! is.na(QUAL)) %>% mutate(qual.class = cut(QUAL,breaks=c(seq(0,QUAL99-1,binWidth),max(QUAL)+1), include.lowest = T )) %>% group_by(qual.class) %>% summarise(count=n())
 
@@ -95,7 +95,7 @@ if (all(is.na(Z$GT)) | all(is.na(Z$AD)) | all(is.na(Z$DP))){
   p7 = ggplot() + ggtitle("Hom (x/x)") + theme(panel.border = element_rect(colour = "black", fill=NA, size=2))
   p8 = ggplot() + ggtitle("Het two variants (x/y)") + theme(panel.border = element_rect(colour = "black", fill=NA, size=2))
 } else {
-  # The histograms show the variant allele frequency (VAF) distributions for different genotypes. Black guiding lines are shown to indicate the theoretical VAF for the main genotypes. For example heterozygous variants should have about as many variant-supporting as reference-supporting reads, for a VAF of 0.5. The reference calls will not usually show a VAF as low as 0 because otherwise they wouldn’t have been flagged as candidates in the first place. The genotypes are based on the GT sub-column and consolidated. For example, 0/1 and 0/2 both become Het (0/x). 1/1 and 3/3 are Hom (x/x). Het - both variants (x/y) includes all calls with two different alternate alleles, such as 1/2 or 3/5.
+  # The histograms show the variant allele frequency (VAF) distributions for different genotypes. Black guiding lines are shown to indicate the theoretical VAF for the main genotypes. For example heterozygous variants should have about as many variant-supporting as reference-supporting reads, for a VAF of 0.5. The reference calls will not usually show a VAF as low as 0 because otherwise they wouldn't have been flagged as candidates in the first place. The genotypes are based on the GT sub-column and consolidated. For example, 0/1 and 0/2 both become Het (0/x). 1/1 and 3/3 are Hom (x/x). Het - both variants (x/y) includes all calls with two different alternate alleles, such as 1/2 or 3/5.
 
   # attention DP peut être > à la somme des AD (AD ne contient que les comptes des allèles sûr (filtrés) alors que DP compte tous les allèles)
   # https://gatk.broadinstitute.org/hc/en-us/articles/360035532252-Allele-Depth-AD-is-lower-than-expected
@@ -104,7 +104,6 @@ if (all(is.na(Z$GT)) | all(is.na(Z$AD)) | all(is.na(Z$DP))){
     z = 0
     if (gt == "0/0") {
         col = 2;
-        
         x = unlist(strsplit(ad,","))[col]
         #z <- as.numeric(x)/as.numeric(dp)
         z <-  as.numeric(x)/ totalAlleles
@@ -128,8 +127,7 @@ if (all(is.na(Z$GT)) | all(is.na(Z$AD)) | all(is.na(Z$DP))){
   p5 = ggplot(vaf00, aes(vaf00)) +  geom_histogram(binwidth=0.02,fill = "#0072B2") + ggtitle("Ref (0/0)") + 
        theme(plot.title = element_text(hjust = 0.5),panel.border = element_rect(colour = "black", fill=NA, size=2)) + xlab("VAF") +
        geom_vline(xintercept = 0, color="red" )  
-  } 
-  else{
+  }   else{
       p5 = ggplot() + ggtitle("No Ref (0/0) found ") + theme(panel.border = element_rect(colour = "black", fill=NA, size=2))
   }
      
@@ -142,8 +140,7 @@ if (all(is.na(Z$GT)) | all(is.na(Z$AD)) | all(is.na(Z$DP))){
   p6 = ggplot(vaf0X, aes(vaf0X)) +  geom_histogram(binwidth=0.02,fill = "#0072B2") + ggtitle("Het (0/x)") +
        theme(plot.title = element_text(hjust = 0.5),panel.border = element_rect(colour = "black", fill=NA, size=2)) + xlab("VAF") +
        geom_vline(xintercept = 0.5, color="red" )  
-  }
-  else{
+  }  else{
       p6 = ggplot() + ggtitle("No Het (0/x) found ") + theme(panel.border = element_rect(colour = "black", fill=NA, size=2))
   } 
 
@@ -154,10 +151,8 @@ if (all(is.na(Z$GT)) | all(is.na(Z$AD)) | all(is.na(Z$DP))){
   p7 = ggplot(vafXX, aes(vafXX)) +  geom_histogram(binwidth=0.02,fill = "#0072B2") + ggtitle("Hom (x/x)") + 
        theme(plot.title = element_text(hjust = 0.5), panel.border = element_rect(colour = "black", fill=NA, size=2)) + xlab("VAF") +
        geom_vline(xintercept = 1, color="red" )  
-  }
-  else{
+  }  else{
         p7 = ggplot() + ggtitle("No Hom (x/x) found ") + theme(panel.border = element_rect(colour = "black", fill=NA, size=2))
-
   }
 
   # hetero X/Y (x and y = 1 or 2 or 3)
@@ -166,8 +161,7 @@ if (all(is.na(Z$GT)) | all(is.na(Z$AD)) | all(is.na(Z$DP))){
   vafXY = mapply(vaf,  df$AD, df$DP, df$GT) %>% tibble::enframe(name=NULL, value="vafXY") %>% filter( ! is.nan(vafXY))
 
   p8 = ggplot(vafXY, aes(vafXY)) +  geom_histogram(binwidth=0.02,fill = "#0072B2") + ggtitle("Het two variants (x/y)") + theme(plot.title = element_text(hjust = 0.5),panel.border = element_rect(colour = "black", fill=NA, size=2)) + xlab("VAF")
-  }
-  else{
+  }  else{
   p8 = ggplot() + ggtitle("No Het two variants (x/y) found ") + theme(panel.border = element_rect(colour = "black", fill=NA, size=2))
 
   }

@@ -14,7 +14,7 @@ library("patchwork")
 library(shinycssloaders)
 
 library(data.table)
-options(encoding = 'UTF-8', shiny.maxRequestSize=130*1024^2) #30MB
+options(encoding = 'UTF-8', shiny.maxRequestSize=130*1024^2) #130MB
 
 
 source ("Draw_fonction_MultiSamples.R")
@@ -30,11 +30,9 @@ UI <- fluidPage(
 
     # Sidebar panel for inputs ----
     sidebarPanel(
-
         fileInput("vcf_file", label = "Your VCF file :", multiple = TRUE, accept = c()),
         numericInput("sample", h3("Draw details for sample :"), value = 1) ,
         width = 2 
-
     ),
 
     # Main panel for displaying outputs ----
@@ -42,16 +40,14 @@ UI <- fluidPage(
       width = 10,
       # Output: Tabset w/ plot, summary, and table ----
       tabsetPanel(type = "tabs",
-                  
                   tabPanel("MultisampleSummary", plotOutput("Plots2", height="900px") %>% withSpinner(color="#0dc5c1")),
                   tabPanel("SampleDetails", plotOutput("Plots1", height="700px") %>% withSpinner(color="#0dc5c1"),
-                           DT::dataTableOutput("IntermediateState") %>% withSpinner(color="#0dc5c1"))
-                  )
+                           DT::dataTableOutput("IntermediateState") %>% withSpinner(color="#0dc5c1")
+                          )
+                 )
       )
-
     )
 )
-
 
 summarizeVCF <- function(vcfFile)
 {
@@ -69,7 +65,7 @@ generate_stats <- function(fic){
     colnames(dp) = dp[1,]
     dp=dp[-1,-c(1,2)]
     dp[dp == -1] <- NA
-    depth = boxplot(data.matrix(dp), plot=F)
+    depth = boxplot(data.matrix(as.numeric(dp)), plot=F)
     
     cmd = paste0("vcftools --gzvcf ",vcf.fn," --missing-indv  --stdout | cut -f5")
     ttt = system(cmd, intern=T)
@@ -94,7 +90,6 @@ generate_stats <- function(fic){
     cmd = paste0("vcftools --gzvcf ",vcf.fn," --site-pi  --stdout | cut -f3")
     ttt = system(cmd, intern=T)
     SitePi = hist(as.numeric(ttt[-1]) )
-
 
     cmd = paste0("vcftools --gzvcf ",vcf.fn," --freq2 --stdout | awk '{if(NR>1) {if($5<$6) {print $5} else {print $6} } }'")
     maf = system(cmd, intern=T)
@@ -123,9 +118,9 @@ SERVER <- function( input, output, session) {
                 coltypes[needCols] = c('c','n','c','n','c','c','c','c')
                 data <- vroom::vroom(inFile, col_types = paste(coltypes, collapse=""),  delim="\t")
                 output$Plots1 <- renderPlot({
-                inFile <- VCFsummary()
-                if (is.null(inFile)) return() 
-                Draw(inFile, isolate(input$sample), Z=data)
+                  inFile <- VCFsummary()
+                  if (is.null(inFile)) return() 
+                  Draw(inFile, isolate(input$sample), Z=data)
                 })
                 data 
             })
@@ -150,7 +145,7 @@ SERVER <- function( input, output, session) {
                     maxmissingF = 0
                     par(mfrow=c(3,2)) 
                     bxp(depth, outline=FALSE, main=paste0("Per sample SNP Depth (DP) distrib. minMAF:", minmafF, " maxMissing:", maxmissingF),  boxfill=2:8, las=3 )
-                    hist(maf, breaks=20, xlim=c(min(maf),0.5), main="Histogram of minor allele frequency across all SNP", xlab="maf frequency", col= rgb(1,0,0,1/4)) 
+                    hist(maf, breaks=20, xlim=c(min(maf, na.rm=T),0.5), main="Histogram of minor allele frequency across all SNP", xlab="maf frequency", col= rgb(1,0,0,1/4)) 
                     barplot(missingness, main=paste0("Per-sample missingness (%)"),  col=2:8, las=3 )
                     plot(sitemissingness, main="Per-site missingness", xlab="% missing",col=rgb(0,0,1,1/4))
                     barplot(as.numeric(F), main=paste0("Per-sample F (inbreeding Coef using a method of moments) "),  col=2:8, las=3 )
