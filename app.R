@@ -14,7 +14,7 @@ library("patchwork")
 library(shinycssloaders)
 
 library(data.table)
-options(encoding = 'UTF-8', shiny.maxRequestSize=200*1024^2) #130MB
+options(encoding = 'UTF-8', shiny.maxRequestSize=500*1024^2) #130MB
 
 
 source ("Draw_fonction_MultiSamples.R")
@@ -65,7 +65,8 @@ generate_stats <- function(fic){
     colnames(dp) = dp[1,]
     dp=dp[-1,-c(1,2)]
     dp[dp == -1] <- NA
-    if (all(is.na(dp))) depth=NULL else    depth = boxplot(data.matrix(as.numeric(dp)), plot=F)
+    dp = apply(dp, 2, function(x) as.numeric(x) )
+    if (all(is.na(dp))) depth=NULL else    depth = boxplot(dp, plot=F)
     
     cmd = paste0("vcftools --gzvcf ",vcf.fn," --missing-indv  --stdout | cut -f5")
     ttt = system(cmd, intern=T)

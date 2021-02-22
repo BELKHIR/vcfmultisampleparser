@@ -30,7 +30,10 @@ awk 'BEGIN{nb=0; OFS="\t"}
         AD=0
         GQ=0
         GT=0
-
+        #freebayes output The AO and RO fields reflect the number of read observations for each alternate and the reference allele respectively.
+        #this is a replacment of AD. AO+RO <= DP in general. This is because DP counts all reads covering the variant site, but AO and RO only include reads deemed good enough for an allele call.
+        AO=0
+        RO=0
         ll = split($9,a,":")
         for (i=1; i <= ll; i++)
         {
@@ -38,6 +41,9 @@ awk 'BEGIN{nb=0; OFS="\t"}
             if (a[i] == "AD") AD=i;
             if (a[i] == "GQ") GQ=i;
             if (a[i] == "GT") GT=i;
+            
+            if (a[i] == "AO") AO=i;
+            if (a[i] == "RO") RO=i;
         }
     }
 
@@ -88,11 +94,20 @@ awk 'BEGIN{nb=0; OFS="\t"}
     }    
 
 	# Missing values
-	if (DP == 0 || (FORMAT[DP]=="") ) { DPVAL="NA" }
-        else {  DPVAL=FORMAT[DP] }
+	if (DP == 0 || (FORMAT[DP]=="") ) { 
+        DPVAL="NA" 
+        #if we have AD or (AO and RO) we can sum the alleles count to get a pseudo DP
+        if (AD != 0 && (FORMAT[AD] !="")) {split(FORMAT[AD],counts,","); for(al in counts) DPVAL = DPVAL+counts[al]}
+        if (AO!=0 || RO!=0) {DPVAL=0;ADVAL=FORMAT[RO]","FORMAT[AO]; split(ADVAL,counts,","); for(al in counts) DPVAL = DPVAL+counts[al] }
+    }
+    else {  DPVAL=FORMAT[DP] }
 
-	if (AD == 0 || (FORMAT[AD] =="")) { ADVAL="NA" }
-        else { ADVAL=FORMAT[AD] }
+	if (AD == 0 || (FORMAT[AD] =="")) { 
+        #test if we have AO and RO
+        if(AO!=0 || RO!=0) {ADVAL=FORMAT[RO]","FORMAT[AO]}
+        else {ADVAL="NA" }
+    }
+    else { ADVAL=FORMAT[AD] }
 
     if (GQ == 0 || (FORMAT[GQ] == "")) { GQVAL="NA" }
         else { GQVAL=FORMAT[GQ] }
