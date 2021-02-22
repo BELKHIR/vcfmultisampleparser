@@ -12,6 +12,7 @@ library(ggplot2)
 library(tidyverse)
 library("patchwork")
 library(shinycssloaders)
+library(shinyFiles)
 
 library(data.table)
 options(encoding = 'UTF-8', shiny.maxRequestSize=500*1024^2) #130MB
@@ -30,11 +31,12 @@ UI <- fluidPage(
 
     # Sidebar panel for inputs ----
     sidebarPanel(
-        fileInput("vcf_file", label = "Your VCF file :", multiple = TRUE, accept = c()),
+        #fileInput("vcf_file", label = "Your VCF file :", multiple = TRUE, accept = c()),
+        shinyFilesButton("servervcffile" ,label="Select a VCF in the server", title="", multiple=FALSE),
         numericInput("sample", h3("Draw details for sample :"), value = 1) ,
         width = 2 
     ),
-
+   
     # Main panel for displaying outputs ----
     mainPanel(
       width = 10,
@@ -100,8 +102,25 @@ generate_stats <- function(fic){
 
 SERVER <- function( input, output, session) {
             data <- NULL
-            VCFsummary <- reactive({ if (is.null(input$vcf_file$datapath)) return(NULL); summarizeVCF(input$vcf_file$datapath) } )
-            
+            vcf.fn <<- ""
+            VCFsummary=NULL
+            shinyFileChoose(input, "servervcffile", root=c(Data="/home/",Results="/home/"),filetypes=c('vcf', 'gz'), session = session)
+ 
+
+            VCFsummary <- reactive({ 
+              if (is.null(input$vcf_file$datapath)){
+                fics = parseFilePaths(c(Data="/home/",Results="/home/"),input$servervcffile)
+                print(fics)
+                if (nrow(fics)>0) {
+                  vcf.fn <<- fics$datapath[1]
+                  summarizeVCF(vcf.fn)
+                }
+                else return(NULL)
+              }   
+            #if (is.null(input$vcf_file$datapath)) return(NULL);  
+            #summarizeVCF(input$vcf_file$datapath) 
+            } )
+
             output$IntermediateState= DT::renderDataTable({
                 inFile <- VCFsummary()
                 
@@ -129,9 +148,9 @@ SERVER <- function( input, output, session) {
 
             
             output$Plots2 <- renderPlot({
-                if (! is.null(input$vcf_file)) 
+                if (! is.null(VCFsummary()) )#(! is.null(input$vcf_file)) 
                 {
-                    vcftools_summary <- generate_stats(input$vcf_file$datapath) 
+                    vcftools_summary <- generate_stats(vcf.fn )#(input$vcf_file$datapath) 
                     
                     depth=vcftools_summary$depth
                     missingness = vcftools_summary$missingness
@@ -144,15 +163,19 @@ SERVER <- function( input, output, session) {
 
                     minmafF = 0
                     maxmissingF = 0
+                    if(is.null(depth)) { 
+                      depth=boxplot(c(0,0,0,0),plot=F)
+                      titre="No sample DP available! "
+                    } else titre=paste0("Per sample SNP Depth (DP) distrib. minMAF:", minmafF, " maxMissing:", maxmissingF)
+
                     par(mfrow=c(3,2))
-                    if(is.null(depth)) bxp(boxplot(c(0,0,0),plot=F), main="No sample DP available! ")
-                    else   bxp(depth, outline=FALSE, main=paste0("Per sample SNP Depth (DP) distrib. minMAF:", minmafF, " maxMissing:", maxmissingF),  boxfill=2:8, las=3 )
-                    
+                    bxp(depth, outline=FALSE, main=titre,  boxfill=2:8, las=3 )
                     hist(maf, breaks=20, xlim=c(min(maf, na.rm=T),0.5), main="Histogram of minor allele frequency across all SNP", xlab="maf frequency", col= rgb(1,0,0,1/4)) 
                     barplot(missingness, main=paste0("Per-sample missingness (%)"),  col=2:8, las=3 )
                     plot(sitemissingness, main="Per-site missingness", xlab="% missing",col=rgb(0,0,1,1/4))
                     barplot(as.numeric(F), main=paste0("Per-sample F (inbreeding Coef using a method of moments) "),  col=2:8, las=3 )
                     plot(SitePi, main="Per-site Pi", xlab="Pi",col=rgb(0,0,1,1/4))
+                    mtext(vcf.fn, side = 3, line = -2, outer = TRUE)
                     par()
                 }
             })
