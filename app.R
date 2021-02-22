@@ -14,7 +14,7 @@ library("patchwork")
 library(shinycssloaders)
 
 library(data.table)
-options(encoding = 'UTF-8', shiny.maxRequestSize=130*1024^2) #130MB
+options(encoding = 'UTF-8', shiny.maxRequestSize=200*1024^2) #130MB
 
 
 source ("Draw_fonction_MultiSamples.R")
@@ -65,7 +65,7 @@ generate_stats <- function(fic){
     colnames(dp) = dp[1,]
     dp=dp[-1,-c(1,2)]
     dp[dp == -1] <- NA
-    depth = boxplot(data.matrix(as.numeric(dp)), plot=F)
+    if (all(is.na(dp))) depth=NULL else    depth = boxplot(data.matrix(as.numeric(dp)), plot=F)
     
     cmd = paste0("vcftools --gzvcf ",vcf.fn," --missing-indv  --stdout | cut -f5")
     ttt = system(cmd, intern=T)
@@ -143,8 +143,10 @@ SERVER <- function( input, output, session) {
 
                     minmafF = 0
                     maxmissingF = 0
-                    par(mfrow=c(3,2)) 
-                    bxp(depth, outline=FALSE, main=paste0("Per sample SNP Depth (DP) distrib. minMAF:", minmafF, " maxMissing:", maxmissingF),  boxfill=2:8, las=3 )
+                    par(mfrow=c(3,2))
+                    if(is.null(depth)) bxp(boxplot(c(0,0,0),plot=F), main="No sample DP available! ")
+                    else   bxp(depth, outline=FALSE, main=paste0("Per sample SNP Depth (DP) distrib. minMAF:", minmafF, " maxMissing:", maxmissingF),  boxfill=2:8, las=3 )
+                    
                     hist(maf, breaks=20, xlim=c(min(maf, na.rm=T),0.5), main="Histogram of minor allele frequency across all SNP", xlab="maf frequency", col= rgb(1,0,0,1/4)) 
                     barplot(missingness, main=paste0("Per-sample missingness (%)"),  col=2:8, las=3 )
                     plot(sitemissingness, main="Per-site missingness", xlab="% missing",col=rgb(0,0,1,1/4))
