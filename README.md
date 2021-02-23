@@ -12,6 +12,10 @@ Detailed statistics are mostly inspired by deepvariant VCF stats report : https:
 
 First the VCF file is parsed to extract various informations (GT, DP, GQ, ...) that are then ploted.
 
+Freebayes users have to use --genotype-qualities option to get the GQ values.
+
+Bcftools mpileup must be run  at least with the option -a AD,DP
+
 This can be achieved either via a command line with the 2 scripts or via a provided shiny application.
 
 vcfmultisampleparser is GPLv3 software, authored and maintained by Khalid Belkhir

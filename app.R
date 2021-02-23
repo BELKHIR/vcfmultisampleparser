@@ -104,12 +104,12 @@ SERVER <- function( input, output, session) {
             data <- NULL
             vcf.fn <<- ""
             VCFsummary=NULL
-            shinyFileChoose(input, "servervcffile", root=c(Data="/home/",Results="/home/"),filetypes=c('vcf', 'gz'), session = session)
+            shinyFileChoose(input, "servervcffile", root=c(Data="/home/",temp="/tmp/"),filetypes=c('vcf', 'gz'), session = session)
  
 
             VCFsummary <- reactive({ 
               if (is.null(input$vcf_file$datapath)){
-                fics = parseFilePaths(c(Data="/home/",Results="/home/"),input$servervcffile)
+                fics = parseFilePaths(c(Data="/home/",temp="/tmp/"),input$servervcffile)
                 print(fics)
                 if (nrow(fics)>0) {
                   vcf.fn <<- fics$datapath[1]
