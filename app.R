@@ -163,8 +163,6 @@ SERVER <- function( input, output, session) {
                  startLocusInfo = nsamples * 5 + 1
                  needCols = c(startSample:(startSample + 4), startLocusInfo:(startLocusInfo +2) )
                 
-                #data = read.table(inFile, head=T, colClasses = colClasses,  sep="\t", stringsAsFactors=F)
-                #data = fread(inFile, header=T, sep="\t", select=needCols, stringsAsFactors=F)
                 coltypes = rep('_', dim(df)[2])
                 coltypes[needCols] = c('c','n','c','n','c','c','c','c')
                 data <- vroom::vroom(inFile, col_types = paste(coltypes, collapse=""),  delim="\t")
@@ -200,11 +198,11 @@ SERVER <- function( input, output, session) {
                     } else titre=paste0("Per sample SNP Depth (DP) distrib.")
 
                     par(mfrow=c(3,2))
-                    bxp(depth, outline=FALSE, main=titre,  boxfill=2:8, las=3 )
+                    bxp(depth, outline=FALSE, ylab=titre,  boxfill=2:8, las=3 )
                     hist(maf, breaks=20, xlim=c(min(maf, na.rm=T),0.5), main="Histogram of minor allele frequency across all SNP", xlab="maf frequency", col= rgb(1,0,0,1/4)) 
-                    barplot(missingness, main=paste0("Per-sample missingness (%)"),  col=2:8, las=3 )
+                    barplot(missingness, ylab=paste0("Per-sample missingness (%)"),  col=2:8, las=3 )
                     plot(sitemissingness, main="Per-site missingness", xlab="% missing",col=rgb(0,0,1,1/4))
-                    barplot(as.numeric(F), main=paste0("Per-sample F (inbreeding Coef using a method of moments) "),  col=2:8, las=3 )
+                    barplot(as.numeric(F), ylab=paste0("Per-sample F (inbreeding Coef using a method of moments) "),  col=2:8, las=3 )
                     plot(SitePi, main="Per-site Pi", xlab="Pi",col=rgb(0,0,1,1/4))
                     mtext(vcf.fn, side = 3, line = -2, outer = TRUE)
                     par()

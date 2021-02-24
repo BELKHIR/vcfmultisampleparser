@@ -1,7 +1,7 @@
 
 This application summarize VCF files visualy. 
 
-First, vcftools commands are used to extract multisamples infos and generate their plots.
+First, commands are used to extract multisamples infos and generate their plots.
 ![Multi samples plot](multisamples.png)
 
 If desired one can get more details about selected sample in a separate tab.
