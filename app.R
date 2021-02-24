@@ -58,46 +58,78 @@ summarizeVCF <- function(vcfFile)
   return( ficout)
 }    
 
-generate_stats <- function(fic){
+generate_stats <- function(fic, ficstats){
     vcf.fn = fic
     
-    cmd = paste0("vcftools --gzvcf ",vcf.fn," --geno-depth --stdout ")
-    ttt = system(cmd, intern=T)
-    dp = data.frame(matrix(unlist(strsplit(ttt,'\t')), nrow=length(ttt), byrow=T),  stringsAsFactors=F)
-    colnames(dp) = dp[1,]
-    dp=dp[-1,-c(1,2)]
-    dp[dp == -1] <- NA
-    dp = apply(dp, 2, function(x) as.numeric(x) )
-    if (all(is.na(dp))) depth=NULL else    depth = boxplot(dp, plot=F)
+    if (is.null(ficstats)) return()
+
+    #determine the number of samples from the header
+    df = read.table(ficstats, nrows=1, header=TRUE, sep="\t", stringsAsFactors=FALSE)
+    ncols  = dim(df)[2]
     
-    cmd = paste0("vcftools --gzvcf ",vcf.fn," --missing-indv  --stdout | cut -f5")
-    ttt = system(cmd, intern=T)
-    #Missingness <- apply(dp, MARGIN = 2, function(x){ sum(is.na(x)) })
-    #Missingness <- Missingness/nrow(dp)
-    Missingness = as.numeric(ttt[-1])
+    nsamples = (dim(df)[2] - 6)/5
+    startSample =  1 
+    startLocusInfo = nsamples * 5 + 1
+    DPCols = seq(2,startLocusInfo -4, 5)
+    neededCols = c(DPCols, ncols-2, ncols-1, ncols)
+    coltypes = rep('_', dim(df)[2])
+    coltypes[neededCols] = 'n'
+    df <- vroom::vroom(ficstats, col_types = paste(coltypes, collapse=""),  delim="\t")
+    nsites = dim(df)[1]
+    colnames(df)[1:nsamples] = str_sub(colnames(df)[1:nsamples], 1, -4) # remove trailing .DP in sample names
+    colmissing = dim(df)[2]
+    colmaf = colmissing -1
+    colpi = colmaf -1
 
-   #  the inbreeding coefficient F from --het i.e. ([observed hom. count] - [expected hom. count]) / ([total observations] - [expected hom. count]))
-    cmd = paste0("vcftools --gzvcf ",vcf.fn," --het  --stdout ")
-    ttt = system(cmd, intern=T)
-    F = data.frame(matrix(unlist(strsplit(ttt,'\t')), nrow=length(ttt), byrow=T),  stringsAsFactors=F)
-    colnames(F) = F[1,]
-    F=F[-1,5]
-    samples = length(F)
+    if (all(is.na(df[,c(-colpi, -colmissing, -colmaf)]))) depth=NULL else    depth = boxplot(df[,c(-colpi, -colmissing, -colmaf)], plot=F)
 
-    cmd = paste0("vcftools --gzvcf ",vcf.fn," --missing-site  --stdout | cut -f6")
-    ttt = system(cmd, intern=T)
-    snps = length(ttt) - 1
+    SitePi = hist(df$Pi)
+    maf = as.numeric(df$MAF)
+    SiteMissingness = hist(df$Miss)
+   
+    GTCols = seq(1,startLocusInfo - 4, 5)
+    coltypes = rep('_', ncols)
+    coltypes[GTCols] = 'c'
+    df <- vroom::vroom(ficstats, col_types = paste(coltypes, collapse=""),  delim="\t")
+    colnames(df)=str_sub(colnames(df), 1, -4)
 
-    SiteMissingness = hist(as.numeric(ttt[-1]) )
+    N_non_missing_sites = apply(df, 2, function(x) sum(x =="./." | x ==".|.") )
+    Missingness = N_non_missing_sites / nsites
 
-    cmd = paste0("vcftools --gzvcf ",vcf.fn," --site-pi  --stdout | cut -f3")
-    ttt = system(cmd, intern=T)
-    SitePi = hist(as.numeric(ttt[-1]) )
+    #  the inbreeding coefficient F from --het i.e. ([observed hom. count] - [expected hom. count]) / ([total observations] - [expected hom. count]))
+    # From vcftools  variant_file_output.cpp#L165
+    #// P(Homo) = F + (1-F)P(Homo by chance)
+    # // P(Homo by chance) = p^2+q^2 for a biallelic locus.
+    # // For an individual with N genotyped loci, we
+    # //   1. count the total observed number of loci which are homozygous (O),
+    # //   2. calculate the total expected number of loci homozygous by chance (E)
+    # // Then, using the method of moments, we have
+    # //    O = NF + (1-F)E
+    # // Which rearranges to give
+    # //    F = (O-E)/(N-E)
 
-    cmd = paste0("vcftools --gzvcf ",vcf.fn," --freq2 --stdout | awk '{if(NR>1) {if($5<$6) {print $5} else {print $6} } }'")
-    maf = system(cmd, intern=T)
+    #Frequency of non-reference allele for bi-allelic sites
+    nb_all_sites = apply(df, 1, function(x) { all = which(unique(unlist(strsplit(x,"[/|]"))) != "."); return(length(all))} )
+    df =  df[nb_all_sites==2,] #only bi-allelic
+    freq = apply(df, 1, function(x) {
+        f=table(x); 
+        totInd = sum(f) #sum(f[c("0/0","0/1","1/0","1/1", "0|0","0|1","1|0","1|1")], na.rm=T);  
+        althom = sum(f[c("1/1", "1|1")], na.rm=T)
+        althet = sum(f[c("0/1","1/0","0|1","1|0")] , na.rm=T)
+        return( ((2* althom) + althet)/(2*totInd) )
+    })
 
-    return(list(samples = samples, snps = snps, depth=depth,missingness=Missingness, maf=as.numeric(maf), sitemissingness = SiteMissingness, F=as.numeric(F), SitePi=SitePi ) )
+    N_non_missing_site = apply(df, 1, function(x) sum(x !="./." & x !=".|.") )
+    site_expected_hom = 1.0 - (2.0 * freq * (1.0 - freq) * (N_non_missing_site / (N_non_missing_site - 1.0)));
+  
+    N_obs_hom      = apply(df, 2, function(x) sum(x == "0/0" | x=="0|0" | x == "1/1" | x == "1|1"))
+    N_expected_hom = apply(df, 2, function(x, expected_hom) { nonMissing = (x !="./." & x !=".|."); return(sum(expected_hom[nonMissing], na.rm=T)) }, expected_hom = site_expected_hom )
+    N_non_missing_ind = apply(df, 2, function(x) sum(x !="./." & x !=".|.") )
+
+    F = (N_obs_hom - N_expected_hom) / (N_non_missing_ind - N_expected_hom);
+
+
+    return(list(samples = nsamples,  depth=depth,missingness=Missingness, maf=as.numeric(maf), sitemissingness = SiteMissingness, F=as.numeric(F), SitePi=SitePi ) )
 }
 
 SERVER <- function( input, output, session) {
@@ -110,15 +142,14 @@ SERVER <- function( input, output, session) {
             VCFsummary <- reactive({ 
               if (is.null(input$vcf_file$datapath)){
                 fics = parseFilePaths(c(Data="/home/",temp="/tmp/"),input$servervcffile)
-                print(fics)
                 if (nrow(fics)>0) {
                   vcf.fn <<- fics$datapath[1]
-                  summarizeVCF(vcf.fn)
+                  ficstats = summarizeVCF(vcf.fn)
+                  return(ficstats)
                 }
                 else return(NULL)
               }   
-            #if (is.null(input$vcf_file$datapath)) return(NULL);  
-            #summarizeVCF(input$vcf_file$datapath) 
+
             } )
 
             output$IntermediateState= DT::renderDataTable({
@@ -127,7 +158,7 @@ SERVER <- function( input, output, session) {
                 if (is.null(inFile)) return()
                 #determine the number of samples from the header
                  df = read.table(inFile, nrows=1, header=TRUE, sep="\t", stringsAsFactors=FALSE)
-                 nsamples = (dim(df)[2] - 3)/5
+                 nsamples = (dim(df)[2] - 6)/5
                  startSample = (input$sample -1) * 5 + 1 
                  startLocusInfo = nsamples * 5 + 1
                  needCols = c(startSample:(startSample + 4), startLocusInfo:(startLocusInfo +2) )
@@ -150,7 +181,7 @@ SERVER <- function( input, output, session) {
             output$Plots2 <- renderPlot({
                 if (! is.null(VCFsummary()) )#(! is.null(input$vcf_file)) 
                 {
-                    vcftools_summary <- generate_stats(vcf.fn )#(input$vcf_file$datapath) 
+                    vcftools_summary <- generate_stats(vcf.fn, VCFsummary() )#(input$vcf_file$datapath) 
                     
                     depth=vcftools_summary$depth
                     missingness = vcftools_summary$missingness
@@ -159,14 +190,14 @@ SERVER <- function( input, output, session) {
                     SitePi = vcftools_summary$SitePi
                     F = vcftools_summary$F
                     samples = vcftools_summary$samples
-                    snps = vcftools_summary$snps
+                    
 
                     minmafF = 0
                     maxmissingF = 0
                     if(is.null(depth)) { 
                       depth=boxplot(c(0,0,0,0),plot=F)
                       titre="No sample DP available! "
-                    } else titre=paste0("Per sample SNP Depth (DP) distrib. minMAF:", minmafF, " maxMissing:", maxmissingF)
+                    } else titre=paste0("Per sample SNP Depth (DP) distrib.")
 
                     par(mfrow=c(3,2))
                     bxp(depth, outline=FALSE, main=titre,  boxfill=2:8, las=3 )

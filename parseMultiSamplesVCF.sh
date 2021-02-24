@@ -17,15 +17,14 @@ awk 'BEGIN{nb=0; OFS="\t"}
         samplesNames[i-9] = $i
         Header = Header $i".GT\t"$i".DP\t"$i".AD\t"$i".GQ\t"$i".TYPE\t"
         }
-    print Header"QUAL\tREF\tALT"    
+    print Header"QUAL\tREF\tALT\tPi\tMAF\tMiss"    
 }
 /^[^#]/{
     nb++
-    if (nb == 1) #we suppose that FORMAT does not change from snp pos
+    if (nb == 1) #we suppose that FORMAT does not change from snp to snp !
     {
-         
-        #DP AD GQ and GT cols in FORMAT
-        
+                 
+        #check DP AD GQ and GT cols in FORMAT field
         DP=0
         AD=0
         GQ=0
@@ -34,7 +33,7 @@ awk 'BEGIN{nb=0; OFS="\t"}
         #this is a replacment of AD. AO+RO <= DP in general. This is because DP counts all reads covering the variant site, but AO and RO only include reads deemed good enough for an allele call.
         AO=0
         RO=0
-        ll = split($9,a,":")
+        ll = split($9,a,":") #FORMAT field
         for (i=1; i <= ll; i++)
         {
             if (a[i] == "DP") DP=i;
@@ -49,19 +48,23 @@ awk 'BEGIN{nb=0; OFS="\t"}
 
     sortie = ""
 
+    x = split($5,a,",");
+    split("", alcounts) #clear the array
+    missing_site = 0
+    totGamets = 0
+
     for (i = 10; i<= NF; i++)
     {
-
+    
     split($i, FORMAT, ":")
-    x = split($5,a,",");
-
-    if ($4 == $5 || $5 == ".") {refCall++} # we consider that a "." in the ALT field is a ref !
+   
+    if ($4 == $5 ) {refCall++}
     else{
 
-    if ( FORMAT[GT] == "./.") {TYPE="noCall"}
+    if ( FORMAT[GT] == "./." || FORMAT[GT] == ".|.") {TYPE="noCall"; missing_site += 1}
     else {
          if (length($5)==1) {
-            if(FORMAT[GT] == "0/0" )    {TYPE="ref"} # we consider that a "." in GT field is a like ref !
+            if(FORMAT[GT] == "0/0" || FORMAT[GT] == "0|0" )    {TYPE="ref"} 
             else {
                 if (length($4) == 1) {TYPE="snp"}
                 else TYPE="bdel"; # ATTTAC   -> A
@@ -71,7 +74,7 @@ awk 'BEGIN{nb=0; OFS="\t"}
 
              if (x >= 2 && length($5) == x+(x-1) )
              {
-                if(FORMAT[GT] == "0/0" || FORMAT[GT] == "./.") { TYPE="ref"}
+                if(FORMAT[GT] == "0/0" || FORMAT[GT] == "0|0") { TYPE="ref"}
                 else {
                     if (length($4) == 1) TYPE="snpmulti";
                     else TYPE="multiIcmpl";
@@ -82,9 +85,9 @@ awk 'BEGIN{nb=0; OFS="\t"}
 
              if (x == 1) {
 
-               if ( length($4) == length($5) ) if(FORMAT[GT] == "0/0" || FORMAT[GT] == "./.")   {TYPE="ref";} else  {TYPE="mnp";}
+               if ( length($4) == length($5) ) if(FORMAT[GT] == "0/0" || FORMAT[GT] == "0|0")   {TYPE="ref";} else  {TYPE="mnp";}
                else {
-                    if(FORMAT[GT] == "0/0" || FORMAT[GT] == "./.")  {TYPE="ref"; }
+                    if(FORMAT[GT] == "0/0" || FORMAT[GT] == "0|0")  {TYPE="ref"; }
                     else {
                     if (length($4) < length($5))  {TYPE="bins";} else  {TYPE="bdel";} }
                    }
@@ -93,7 +96,16 @@ awk 'BEGIN{nb=0; OFS="\t"}
         }
     }    
 
-	# Missing values
+
+	
+    if ( FORMAT[GT] != "./." && FORMAT[GT] != ".|.") {
+    #calc all. freq
+    ploidy = split(FORMAT[GT],allels, "[/|]")
+    totGamets = totGamets + ploidy
+    for (al = 1; al <= ploidy; al++) {if (allels[al] != ".") alcounts[allels[al]] += 1}
+    }
+
+
 	if (DP == 0 || (FORMAT[DP]=="") ) { 
         DPVAL="NA" 
         #if we have AD or (AO and RO) we can sum the alleles count to get a pseudo DP
@@ -118,7 +130,31 @@ awk 'BEGIN{nb=0; OFS="\t"}
     sortie = sortie GTVAL"\t"DPVAL"\t"ADVAL"\t"GQVAL"\t"TYPE"\t" 
 
     }# for each sample
-    print sortie $6"\t"$4"\t"$5
+
+    # MAF
+    total_alleles=0
+    if (totGamets > 0)
+    {
+        MAF=999999
+        for (al in alcounts) {
+            if (alcounts[al] <MAF) MAF = alcounts[al]
+            total_alleles += alcounts[al]
+            }
+        MAF= MAF/totGamets
+        if (MAF == 1) MAF=0
+    }
+    else MAF="NA"
+
+    # Pi
+    mismatches = 0
+    for (al in alcounts) {
+        other_alleles_count = (total_alleles - alcounts[al]);
+		mismatches += (alcounts[al] * other_alleles_count);
+    }
+    pairs = (total_alleles * (total_alleles - 1));
+	pi = mismatches/pairs;
+
+    print sortie $6"\t"$4"\t"$5"\t"pi"\t"MAF"\t"missing_site/(NF-9)
      
     }
     END    {
