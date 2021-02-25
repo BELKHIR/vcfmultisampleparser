@@ -13,9 +13,7 @@ library(tidyverse)
 library("patchwork")
 library(shinycssloaders)
 library(shinyFiles)
-
-library(data.table)
-options(encoding = 'UTF-8', shiny.maxRequestSize=500*1024^2) #130MB
+#library(data.table)
 
 
 source ("Draw_fonction_MultiSamples.R")
