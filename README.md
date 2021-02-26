@@ -34,9 +34,31 @@ git clone https://github.com/BELKHIR/vcfmultisampleparser.git
   
 cd vcfmultisampleparser
 
+# Running the shiny app :
+
 Rscript -e 'shiny::runApp(".", host="127.0.0.1", port=4123)'
 
 Open your browser and go to this URL : http://127.0.0.1:4123
+
+# In command line mode :
+
+Starting with a vcf file in 3 steps
+
+. Create a pre-processed file from vcf file optionnaly gziped
+ 
+   bash ./parseMultiSamplesVCF.sh myfile.vcf.gz myfile.processed.tsv
+
+. Generate multi samples summary plots in a file named myfileFig.png
+
+  Rscript myfile.processed.tsv myfileFig
+
+. Generate detailed plots for the first sample 
+
+    fic="myfile.processed.tsv" # pre-processed file name
+    sample=1 # position of the sample to analyse
+    fig="sample"${sample}".png" # fig output filename
+    
+    Rscript -e "source('./Draw_fonction_MultiSamples.R');  png(file='$fig', width = 1200, height = 1000); Draw('$fic', $sample, NULL); dev.off() "
 
 
 vcfmultisampleparser is GPLv3 software, authored and maintained by Khalid Belkhir

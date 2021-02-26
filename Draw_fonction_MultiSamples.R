@@ -1,6 +1,6 @@
-#library(ggplot2)
-#library(tidyverse)
-#library("patchwork")
+library(ggplot2)
+library(tidyverse)
+library("patchwork")
 
 #vérifier l'usage de ALT dans un contexte multi-samples !
 Draw <- function(inFile, sample, Z=NULL)
@@ -25,7 +25,7 @@ Draw <- function(inFile, sample, Z=NULL)
             }
             
             #get sample name
-            sampleName = str_sub(colnames(Z)[1], 1, -4) # remove trailing .GT in sample name
+            sampleName = stringr::str_sub(colnames(Z)[1], 1, -4) # remove trailing .GT in sample name
 
             colnames(Z) = c('GT','DP','AD','GQ','TYPE','QUAL','REF','ALT')
             if (all(is.na(Z$GQ))) {
