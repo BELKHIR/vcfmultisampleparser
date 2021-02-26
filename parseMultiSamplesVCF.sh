@@ -61,7 +61,7 @@ awk 'BEGIN{nb=0; OFS="\t"}
     if ($4 == $5 ) {refCall++}
     else{
 
-    if ( FORMAT[GT] == "./." || FORMAT[GT] == ".|.") {TYPE="noCall"; missing_site += 1}
+    if ( index(FORMAT[GT],".") != 0) {TYPE="noCall"; missing_site += 1}
     else {
          if (length($5)==1) {
             if(FORMAT[GT] == "0/0" || FORMAT[GT] == "0|0" )    {TYPE="ref"} 
@@ -98,12 +98,23 @@ awk 'BEGIN{nb=0; OFS="\t"}
 
 
 	
-    if ( FORMAT[GT] != "./." && FORMAT[GT] != ".|.") {
-    #calc all. freq
-    ploidy = split(FORMAT[GT],allels, "[/|]")
-    totGamets = totGamets + ploidy
-    for (al = 1; al <= ploidy; al++) {if (allels[al] != ".") alcounts[allels[al]] += 1}
-    }
+    if ( index(FORMAT[GT],".") == 0) {
+        #calc all. freq
+        ploidy = split(FORMAT[GT],allels, "[/|]")
+        if (ploidy == 2)
+        {
+            totGamets = totGamets + 2
+            if (allels[2] <  allels[1]) {al1 = allels[2]; al2= allels[1]} else {al1 = allels[1]; al2= allels[2]}
+            alcounts[al1]++
+            alcounts[al2]++  
+            #code genotype as integer : 0/0 -> 00, 0/1 or 1/0 -> 01, 1/1 -> 11, 1/2 -> 12 
+            # no values like 10 or 20 ... as alleles are sorted
+            # the phase is lost !
+            #if readed as integers : 0 REF REF, 1-9 REF ALT, 11 22 homz. ALT , 12 13 23 hetero ALT 
+            FORMAT[GT] = al1 al2           
+        }
+        
+    } else FORMAT[GT] = "NA"
 
 
 	if (DP == 0 || (FORMAT[DP]=="") ) { 
@@ -122,10 +133,10 @@ awk 'BEGIN{nb=0; OFS="\t"}
     else { ADVAL=FORMAT[AD] }
 
     if (GQ == 0 || (FORMAT[GQ] == "")) { GQVAL="NA" }
-        else { GQVAL=FORMAT[GQ] }
+    else { GQVAL=FORMAT[GQ] }
 
 	if (GT == 0 || (FORMAT[GT]=="")) { GTVAL="NA" }
-        else { GTVAL=FORMAT[GT] }
+    else { GTVAL=FORMAT[GT]     }
     
     sortie = sortie GTVAL"\t"DPVAL"\t"ADVAL"\t"GQVAL"\t"TYPE"\t" 
 
@@ -139,8 +150,9 @@ awk 'BEGIN{nb=0; OFS="\t"}
         for (al in alcounts) {
             if (alcounts[al] <MAF) MAF = alcounts[al]
             total_alleles += alcounts[al]
-            }
-        MAF= MAF/totGamets
+        }
+        #MAF= MAF/totGamets
+        MAF= MAF/total_alleles
         if (MAF == 1) MAF=0
     }
     else MAF="NA"
@@ -154,12 +166,12 @@ awk 'BEGIN{nb=0; OFS="\t"}
     pairs = (total_alleles * (total_alleles - 1));
 	pi = mismatches/pairs;
 
-    print sortie $6"\t"$4"\t"$5"\t"pi"\t"MAF"\t"missing_site/(NF-9)
+    print sortie $6"\t"$4"\t"$5"\t"pi"\t"MAF"\t"missing_site
      
     }
     END    {
       #  print bidel, biins, mnp, multindelcomplex, refCall, snp, snpmulti
-    }  '       > $outfile
+    }  '     > $outfile
 
 
 if [ "$basefigres" != '' ] 

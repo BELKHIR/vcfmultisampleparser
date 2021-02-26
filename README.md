@@ -22,6 +22,8 @@ Installation :
 
 Needed packages and other dependencies :
  
+R must be installed on your linux (test have been made on R version 4.0.3)
+ 
 Rscript -e "install.packages(c('shiny','shinydashboard','shinyjs','DT','ggplot2','tidyverse','patchwork','shinycssloaders','shinyFiles','vroom'), Ncpus = 8)"
   
 sudo apt-get install gawk
