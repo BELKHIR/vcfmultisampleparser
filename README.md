@@ -24,19 +24,19 @@ Needed packages and other dependencies :
  
 R must be installed on your linux (test have been made on R version 4.0.3)
  
-Rscript -e "install.packages(c('shiny','shinydashboard','shinyjs','DT','ggplot2','tidyverse','patchwork','shinycssloaders','shinyFiles','vroom'), Ncpus = 8)"
+```Rscript -e "install.packages(c('shiny','shinydashboard','shinyjs','DT','ggplot2','tidyverse','patchwork','shinycssloaders','shinyFiles','vroom'), Ncpus = 8)"```
   
-sudo apt-get install gawk
+```sudo apt-get install gawk```
 
 Source code:
   
-git clone https://github.com/BELKHIR/vcfmultisampleparser.git
+```git clone https://github.com/BELKHIR/vcfmultisampleparser.git```
   
-cd vcfmultisampleparser
+```cd vcfmultisampleparser```
 
 # Running the shiny app :
 
-Rscript -e 'shiny::runApp(".", host="127.0.0.1", port=4123)'
+```Rscript -e 'shiny::runApp(".", host="127.0.0.1", port=4123)'```
 
 Open your browser and go to this URL : http://127.0.0.1:4123
 
@@ -52,7 +52,7 @@ An example of vcf file sticklebacks_Danish_HAD-KRO-NOR.vcf.gz file can be found 
 
 * Generate multi samples summary plots in a file named myfileFig.png
 
-  ```Rscript myfile.processed.tsv myfileFig```
+  ```Rscript plotMultiSamplesVCF.R myfile.processed.tsv myfileFig```
 
 * Generate detailed plots for each sample 
 
