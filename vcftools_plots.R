@@ -6,7 +6,7 @@
 # bash ./parseMultiSamplesVCF.sh myfile.vcf.gz myfile.processed.tsv
 
 # Generate multi samples summary plots in a file named myfileFig.png
-# Rscript myfile.processed.tsv myfileFig
+# Rscript vcftools_plots myfile.processed.tsv myfileFig
 
 generate_stats <- function(ficstats){
    if (is.null(ficstats)) return()

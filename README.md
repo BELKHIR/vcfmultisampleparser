@@ -52,7 +52,7 @@ An example of vcf file sticklebacks_Danish_HAD-KRO-NOR.vcf.gz file can be found 
 
 * Generate multi samples summary plots in a file named myfileFig.png
 
-  ```Rscript plotMultiSamplesVCF.R myfile.processed.tsv myfileFig```
+  ```Rscript vcftools_plots.R myfile.processed.tsv myfileFig```
 
 * Generate detailed plots for each sample 
 
